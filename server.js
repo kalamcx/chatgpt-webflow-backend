@@ -45,7 +45,7 @@ app.post("/ask", async (req, res) => {
 
     // Run the assistant on the thread
     const run = await openai.beta.threads.runs.create(threadId, {
-      ASSISTANT_ID: assistantId
+      assistant_id: assistantId
     });
 
     // Wait for completion
