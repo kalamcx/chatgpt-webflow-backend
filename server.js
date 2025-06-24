@@ -11,7 +11,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-const assistantId = process.env.Assistant_ID;
+const assistantId = process.env.ASSISTANT_ID;
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -45,7 +45,7 @@ app.post("/ask", async (req, res) => {
 
     // Run the assistant on the thread
     const run = await openai.beta.threads.runs.create(threadId, {
-      assistant_id: assistantId
+      ASSISTANT_ID: assistantId
     });
 
     // Wait for completion
