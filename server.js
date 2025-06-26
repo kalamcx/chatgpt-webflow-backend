@@ -59,8 +59,9 @@ app.post("/ask", async (req, res) => {
     const messages = await openai.beta.threads.messages.list(threadId);
     const lastMessage = messages.data.find(msg => msg.role === "assistant");
     let reply = lastMessage?.content?.[0]?.text?.value || "No reply from assistant.";
-    // Remove citation references like 【5:0+filename.docx】
-    reply = reply.replace(/【\d+:\d+\+[^】]+】/g, "");
+    // Remove all citation references like 【5:0+...】 or  
+    reply = reply.replace(/【[^】]+】/g, "");
+
 
 
     res.json({ reply });
