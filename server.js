@@ -58,7 +58,10 @@ app.post("/ask", async (req, res) => {
     // Get the latest assistant message
     const messages = await openai.beta.threads.messages.list(threadId);
     const lastMessage = messages.data.find(msg => msg.role === "assistant");
-    const reply = lastMessage?.content?.[0]?.text?.value || "No reply from assistant.";
+    let reply = lastMessage?.content?.[0]?.text?.value || "No reply from assistant.";
+    // Remove citation references like 【5:0+filename.docx】
+    reply = reply.replace(/【\d+:\d+\+[^】]+】/g, "");
+
 
     res.json({ reply });
   } catch (error) {
