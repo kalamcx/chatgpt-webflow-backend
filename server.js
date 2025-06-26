@@ -16,7 +16,7 @@ const assistantId = process.env.ASSISTANT_ID;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Create a new thread (only once per session)
+// Create a new thread (once per session)
 app.get("/create-thread", async (req, res) => {
   try {
     const thread = await openai.beta.threads.create();
@@ -27,7 +27,7 @@ app.get("/create-thread", async (req, res) => {
   }
 });
 
-// Send message to assistant using thread
+// Ask assistant a question
 app.post("/ask", async (req, res) => {
   try {
     const userMessage = req.body.message;
@@ -43,25 +43,24 @@ app.post("/ask", async (req, res) => {
       content: userMessage
     });
 
-    // Run the assistant on the thread
+    // Run assistant
     const run = await openai.beta.threads.runs.create(threadId, {
       assistant_id: assistantId
     });
 
-    // Wait for completion
+    // Wait until run completes
     let runStatus;
     do {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
     } while (runStatus.status !== "completed");
 
-    // Get messages
+    // Get the latest assistant message
     const messages = await openai.beta.threads.messages.list(threadId);
     const lastMessage = messages.data.find(msg => msg.role === "assistant");
-
     const reply = lastMessage?.content?.[0]?.text?.value || "No reply from assistant.";
-    res.json({ reply });
 
+    res.json({ reply });
   } catch (error) {
     console.error("Error in /ask:", error);
     res.status(500).json({ error: "Failed to get assistant response" });
@@ -69,5 +68,5 @@ app.post("/ask", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`✅ Server running on port ${port}`);
 });
