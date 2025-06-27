@@ -10,7 +10,9 @@ const port = process.env.PORT || 3000;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  baseURL: "https://api.openai.com/v1",
 });
+
 
 const assistantId = process.env.ASSISTANT_ID;
 
