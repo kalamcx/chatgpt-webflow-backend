@@ -82,12 +82,25 @@ app.get("/test-supabase", async (req, res) => {
 app.get("/create-thread", async (req, res) => {
   try {
     const thread = await openai.beta.threads.create();
+
+    // Save thread to Supabase
+    const supabase = createClient(
+      process.env.YOUR_SUPABASE_PROJECT_URL,
+      process.env.YOUR_SUPABASE_API_KEY
+    );
+
+    await supabase.from("threads").insert({
+      id: thread.id,
+      created_at: new Date().toISOString(),
+    });
+
     res.json({ thread_id: thread.id });
   } catch (error) {
     console.error("Error creating thread:", error);
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // Ask assistant
 app.post("/ask", async (req, res) => {
@@ -96,18 +109,21 @@ app.post("/ask", async (req, res) => {
     const threadId = req.body.thread_id;
 
     if (!userMessage || !threadId) {
-      return res
-        .status(400)
-        .json({ error: "Missing message or thread_id" });
+      return res.status(400).json({ error: "Missing message or thread_id" });
     }
 
-    // Add user message to thread
+    // Add user message to OpenAI thread
     await openai.beta.threads.messages.create(threadId, {
       role: "user",
       content: userMessage,
     });
 
-    // Store user message
+    // Save user message to Supabase
+    const supabase = createClient(
+      process.env.YOUR_SUPABASE_PROJECT_URL,
+      process.env.YOUR_SUPABASE_API_KEY
+    );
+
     await supabase.from("messages").insert({
       id: crypto.randomUUID(),
       thread_id: threadId,
@@ -121,27 +137,25 @@ app.post("/ask", async (req, res) => {
       assistant_id: assistantId,
     });
 
+    // Wait for run to complete
     let runStatus;
     do {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      runStatus = await openai.beta.threads.runs.retrieve(
-        threadId,
-        run.id
-      );
+      runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
     } while (runStatus.status !== "completed");
 
+    // Get assistant reply
     const messages = await openai.beta.threads.messages.list(threadId);
     const lastMessage = messages.data.find(
       (msg) => msg.role === "assistant"
     );
 
     let reply =
-      lastMessage?.content?.[0]?.text?.value ||
-      "No reply from assistant.";
+      lastMessage?.content?.[0]?.text?.value || "No reply from assistant.";
 
     reply = reply.replace(/【[^】]+】/g, "");
 
-    // Store assistant message
+    // Save assistant message to Supabase
     await supabase.from("messages").insert({
       id: crypto.randomUUID(),
       thread_id: threadId,
@@ -156,6 +170,7 @@ app.post("/ask", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 app.listen(port, () => {
   console.log(`✅ Server running on port ${port}`);
