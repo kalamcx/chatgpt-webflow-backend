@@ -24,30 +24,59 @@ const assistantId = process.env.ASSISTANT_ID;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Test route
 app.get("/test-supabase", async (req, res) => {
   try {
-    const result = await supabase
+    const { createClient } = require("@supabase/supabase-js");
+    const supabase = createClient(
+      process.env.YOUR_SUPABASE_PROJECT_URL,
+      process.env.YOUR_SUPABASE_API_KEY
+    );
+
+    // Step 1 — insert a thread
+    const newThreadId = crypto.randomUUID();
+    const threadResult = await supabase
+      .from("threads")
+      .insert({
+        id: newThreadId,
+        created_at: new Date().toISOString(),
+      })
+      .select();
+
+    if (threadResult.error) {
+      console.error(threadResult.error);
+      return res.status(500).json({ error: threadResult.error.message });
+    }
+
+    console.log("Thread inserted:", threadResult.data);
+
+    // Step 2 — insert a message linked to that thread
+    const messageResult = await supabase
       .from("messages")
       .insert({
         id: crypto.randomUUID(),
-        thread_id: crypto.randomUUID(),
-        content: "Test message",
+        thread_id: newThreadId,
+        content: "Test message from /test-supabase",
         role: "user",
         created_at: new Date().toISOString(),
-      });
+      })
+      .select();
 
-    if (result.error) {
-      console.error(result.error);
-      return res.status(500).json({ error: result.error.message });
+    if (messageResult.error) {
+      console.error(messageResult.error);
+      return res.status(500).json({ error: messageResult.error.message });
     }
 
-    res.json({ message: "Insert successful", data: result.data });
+    res.json({
+      message: "Insert successful!",
+      thread: threadResult.data,
+      messageData: messageResult.data,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Create thread
 app.get("/create-thread", async (req, res) => {
