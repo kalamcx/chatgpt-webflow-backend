@@ -31,7 +31,7 @@ app.get("/test-supabase", async (req, res) => {
       .from("messages")
       .insert({
         id: crypto.randomUUID(),
-        thread_id: "test-thread-id",
+        thread_id: crypto.randomUUID(),
         content: "Test message",
         role: "user",
         created_at: new Date().toISOString(),
