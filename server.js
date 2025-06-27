@@ -24,17 +24,12 @@ const assistantId = process.env.ASSISTANT_ID;
 app.use(cors());
 app.use(bodyParser.json());
 
+// TEST ROUTE
 app.get("/test-supabase", async (req, res) => {
   try {
-    const { createClient } = require("@supabase/supabase-js");
-    const supabase = createClient(
-      process.env.YOUR_SUPABASE_PROJECT_URL,
-      process.env.YOUR_SUPABASE_API_KEY
-    );
-
-    // Step 1 — insert a thread
     const newThreadId = crypto.randomUUID();
-    const threadResult = await supabase
+
+    const { data: threadData, error: threadError } = await supabase
       .from("threads")
       .insert({
         id: newThreadId,
@@ -42,15 +37,12 @@ app.get("/test-supabase", async (req, res) => {
       })
       .select();
 
-    if (threadResult.error) {
-      console.error(threadResult.error);
-      return res.status(500).json({ error: threadResult.error.message });
+    if (threadError) {
+      console.error(threadError);
+      return res.status(500).json({ error: threadError.message });
     }
 
-    console.log("Thread inserted:", threadResult.data);
-
-    // Step 2 — insert a message linked to that thread
-    const messageResult = await supabase
+    const { data: messageData, error: messageError } = await supabase
       .from("messages")
       .insert({
         id: crypto.randomUUID(),
@@ -61,15 +53,15 @@ app.get("/test-supabase", async (req, res) => {
       })
       .select();
 
-    if (messageResult.error) {
-      console.error(messageResult.error);
-      return res.status(500).json({ error: messageResult.error.message });
+    if (messageError) {
+      console.error(messageError);
+      return res.status(500).json({ error: messageError.message });
     }
 
     res.json({
       message: "Insert successful!",
-      thread: threadResult.data,
-      messageData: messageResult.data,
+      thread: threadData,
+      messageData: messageData,
     });
   } catch (err) {
     console.error(err);
@@ -77,22 +69,23 @@ app.get("/test-supabase", async (req, res) => {
   }
 });
 
-
 // Create thread
 app.get("/create-thread", async (req, res) => {
   try {
     const thread = await openai.beta.threads.create();
 
-    // Save thread to Supabase
-    const supabase = createClient(
-      process.env.YOUR_SUPABASE_PROJECT_URL,
-      process.env.YOUR_SUPABASE_API_KEY
-    );
+    const { error } = await supabase
+      .from("threads")
+      .insert({
+        id: thread.id,
+        created_at: new Date().toISOString(),
+      })
+      .select();
 
-    await supabase.from("threads").insert({
-      id: thread.id,
-      created_at: new Date().toISOString(),
-    });
+    if (error) {
+      console.error(error);
+      return res.status(500).json({ error: error.message });
+    }
 
     res.json({ thread_id: thread.id });
   } catch (error) {
@@ -100,7 +93,6 @@ app.get("/create-thread", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 // Ask assistant
 app.post("/ask", async (req, res) => {
@@ -119,32 +111,33 @@ app.post("/ask", async (req, res) => {
     });
 
     // Save user message to Supabase
-    const supabase = createClient(
-      process.env.YOUR_SUPABASE_PROJECT_URL,
-      process.env.YOUR_SUPABASE_API_KEY
-    );
+    const { error: insertUserError } = await supabase
+      .from("messages")
+      .insert({
+        id: crypto.randomUUID(),
+        thread_id: threadId,
+        role: "user",
+        content: userMessage,
+        created_at: new Date().toISOString(),
+      })
+      .select();
 
-    await supabase.from("messages").insert({
-      id: crypto.randomUUID(),
-      thread_id: threadId,
-      role: "user",
-      content: userMessage,
-      created_at: new Date().toISOString(),
-    });
+    if (insertUserError) {
+      console.error(insertUserError);
+      return res.status(500).json({ error: insertUserError.message });
+    }
 
     // Run assistant
     const run = await openai.beta.threads.runs.create(threadId, {
       assistant_id: assistantId,
     });
 
-    // Wait for run to complete
     let runStatus;
     do {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
     } while (runStatus.status !== "completed");
 
-    // Get assistant reply
     const messages = await openai.beta.threads.messages.list(threadId);
     const lastMessage = messages.data.find(
       (msg) => msg.role === "assistant"
@@ -155,14 +148,22 @@ app.post("/ask", async (req, res) => {
 
     reply = reply.replace(/【[^】]+】/g, "");
 
-    // Save assistant message to Supabase
-    await supabase.from("messages").insert({
-      id: crypto.randomUUID(),
-      thread_id: threadId,
-      role: "assistant",
-      content: reply,
-      created_at: new Date().toISOString(),
-    });
+    // Save assistant message
+    const { error: insertBotError } = await supabase
+      .from("messages")
+      .insert({
+        id: crypto.randomUUID(),
+        thread_id: threadId,
+        role: "assistant",
+        content: reply,
+        created_at: new Date().toISOString(),
+      })
+      .select();
+
+    if (insertBotError) {
+      console.error(insertBotError);
+      return res.status(500).json({ error: insertBotError.message });
+    }
 
     res.json({ reply });
   } catch (error) {
@@ -170,7 +171,6 @@ app.post("/ask", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 app.listen(port, () => {
   console.log(`✅ Server running on port ${port}`);
