@@ -172,15 +172,10 @@ app.post("/ask", async (req, res) => {
   }
 });
 
-//Retrieve History
+// Retrieve History
 app.get("/threads/:threadId/messages", async (req, res) => {
   try {
     const { threadId } = req.params;
-
-    const supabase = createClient(
-      process.env.YOUR_SUPABASE_PROJECT_URL,
-      process.env.YOUR_SUPABASE_API_KEY
-    );
 
     // Fetch all messages for this thread
     const { data, error } = await supabase
@@ -203,7 +198,6 @@ app.get("/threads/:threadId/messages", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 app.listen(port, () => {
   console.log(`✅ Server running on port ${port}`);
