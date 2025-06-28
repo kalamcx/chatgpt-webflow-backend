@@ -24,51 +24,6 @@ const assistantId = process.env.ASSISTANT_ID;
 app.use(cors());
 app.use(bodyParser.json());
 
-// TEST ROUTE
-app.get("/test-supabase", async (req, res) => {
-  try {
-    const newThreadId = crypto.randomUUID();
-
-    const { data: threadData, error: threadError } = await supabase
-      .from("threads")
-      .insert({
-        id: newThreadId,
-        created_at: new Date().toISOString(),
-      })
-      .select();
-
-    if (threadError) {
-      console.error(threadError);
-      return res.status(500).json({ error: threadError.message });
-    }
-
-    const { data: messageData, error: messageError } = await supabase
-      .from("messages")
-      .insert({
-        id: crypto.randomUUID(),
-        thread_id: newThreadId,
-        content: "Test message from /test-supabase",
-        role: "user",
-        created_at: new Date().toISOString(),
-      })
-      .select();
-
-    if (messageError) {
-      console.error(messageError);
-      return res.status(500).json({ error: messageError.message });
-    }
-
-    res.json({
-      message: "Insert successful!",
-      thread: threadData,
-      messageData: messageData,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // Create thread
 app.get("/create-thread", async (req, res) => {
   try {
