@@ -172,6 +172,39 @@ app.post("/ask", async (req, res) => {
   }
 });
 
+//Retrieve History
+app.get("/threads/:threadId/messages", async (req, res) => {
+  try {
+    const { threadId } = req.params;
+
+    const supabase = createClient(
+      process.env.YOUR_SUPABASE_PROJECT_URL,
+      process.env.YOUR_SUPABASE_API_KEY
+    );
+
+    // Fetch all messages for this thread
+    const { data, error } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("thread_id", threadId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({
+      thread_id: threadId,
+      messages: data,
+    });
+  } catch (error) {
+    console.error("Error in fetching messages:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 app.listen(port, () => {
   console.log(`✅ Server running on port ${port}`);
 });
